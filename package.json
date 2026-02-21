@@ -1,0 +1,21 @@
+{
+  "name": "fileshift",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Universal File Converter on Netlify",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.4.0",
+    "busboy": "^1.6.0",
+    "msgreader": "^1.0.1",
+    "mailparser": "^3.7.1",
+    "mammoth": "^1.8.0",
+    "pdfkit": "^0.15.0",
+    "docx": "^9.2.0",
+    "htmlparser2": "^9.1.0",
+    "dom-serializer": "^2.0.0",
+    "domutils": "^3.1.0"
+  }
+}

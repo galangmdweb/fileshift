@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FileShift — Universal File Converter</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06060c;--s1:#0d0d18;--s2:#14142a;--s3:#1c1c3a;
+  --bdr:#2a2a50;--tx:#e4e4f0;--tx2:#7a7aa0;
+  --ac:#ff5e3a;--ac2:#00e8b0;--ac3:#6c5ce7;
+  --glow1:rgba(255,94,58,.25);--glow2:rgba(0,232,176,.2);
+  --r:14px;
+}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+
+/* ── BG Effects ── */
+.noise{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.orb{position:fixed;border-radius:50%;filter:blur(100px);z-index:0;pointer-events:none;animation:orbFloat 8s ease-in-out infinite alternate}
+.orb-1{width:500px;height:500px;top:-150px;right:-100px;background:radial-gradient(circle,var(--glow1),transparent 70%)}
+.orb-2{width:400px;height:400px;bottom:-100px;left:-80px;background:radial-gradient(circle,var(--glow2),transparent 70%);animation-delay:3s}
+.orb-3{width:300px;height:300px;top:50%;left:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(108,92,231,.1),transparent 70%);animation-delay:5s}
+@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,-20px) scale(1.15)}}
+
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:48px 24px}
+
+/* ── Header ── */
+header{text-align:center;margin-bottom:56px}
+.logo-row{display:inline-flex;align-items:center;gap:12px;margin-bottom:10px}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--ac),var(--ac3));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 8px 32px var(--glow1)}
+h1{font-family:'JetBrains Mono',monospace;font-size:2.4rem;font-weight:700;letter-spacing:-1.5px;
+  background:linear-gradient(135deg,var(--ac) 0%,#ff9a6c 40%,var(--ac2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.tagline{color:var(--tx2);font-size:.95rem;font-weight:300;letter-spacing:4px;text-transform:uppercase;margin-bottom:20px}
+.badges{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.badge{font-family:'JetBrains Mono',monospace;font-size:.65rem;padding:4px 10px;background:var(--s2);border:1px solid var(--bdr);border-radius:20px;color:var(--tx2);transition:.3s;cursor:default}
+.badge:hover{border-color:var(--ac);color:var(--ac);box-shadow:0 0 14px var(--glow1)}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.a1{animation:fadeUp .6s ease both}
+.a2{animation:fadeUp .6s ease .1s both}
+.a3{animation:fadeUp .6s ease .2s both}
+.a4{animation:fadeUp .6s ease .3s both}
+
+/* ── Drop Zone ── */
+.drop{position:relative;border:2px dashed var(--bdr);border-radius:20px;padding:56px 32px;text-align:center;cursor:pointer;transition:all .4s cubic-bezier(.4,0,.2,1);background:linear-gradient(160deg,var(--s1),var(--s2));margin-bottom:32px;overflow:hidden}
+.drop::after{content:'';position:absolute;inset:-2px;border-radius:22px;background:conic-gradient(from 0deg,var(--ac),var(--ac3),var(--ac2),var(--ac));opacity:0;z-index:-1;transition:opacity .4s;animation:borderSpin 4s linear infinite}
+@keyframes borderSpin{to{transform:rotate(360deg)}}
+.drop.over{border-color:transparent;transform:scale(1.02)}.drop.over::after{opacity:1}
+.drop.over .drop-ico{transform:scale(1.2) translateY(-4px)}
+.drop-ico{font-size:3.2rem;margin-bottom:14px;transition:.4s cubic-bezier(.4,0,.2,1);filter:drop-shadow(0 4px 12px rgba(0,0,0,.3))}
+.drop:hover .drop-ico{transform:translateY(-4px)}
+.drop-title{font-size:1.15rem;font-weight:500;margin-bottom:4px}
+.drop-sub{font-size:.85rem;color:var(--tx2)}
+.drop-sub b{color:var(--ac);cursor:pointer;border-bottom:1px solid var(--ac);padding-bottom:1px}
+#fileIn{display:none}
+
+/* ── File List ── */
+.files{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.file-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--s1);border:1px solid var(--bdr);border-radius:var(--r);transition:.3s}
+.file-card:hover{border-color:rgba(255,94,58,.3);background:var(--s2)}
+.file-ext{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.6rem;text-transform:uppercase;color:#fff;flex-shrink:0;letter-spacing:.5px}
+.ext-msg,.ext-eml{background:linear-gradient(135deg,#6c5ce7,#a29bfe)}
+.ext-docx{background:linear-gradient(135deg,#2d6cdf,#74b9ff)}
+.ext-csv,.ext-json,.ext-xml{background:linear-gradient(135deg,#00b894,#55efc4)}
+.ext-html,.ext-htm{background:linear-gradient(135deg,#e17055,#fab1a0)}
+.ext-txt,.ext-md,.ext-rtf{background:linear-gradient(135deg,#636e72,#b2bec3)}
+.ext-default{background:linear-gradient(135deg,var(--ac),#ff9a6c)}
+.file-info{flex:1;min-width:0}
+.file-name{font-weight:500;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-size{font-size:.75rem;color:var(--tx2);margin-top:2px}
+.file-rm{width:30px;height:30px;background:0 0;border:1px solid var(--bdr);border-radius:8px;color:var(--tx2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:.3s}
+.file-rm:hover{background:#ff4466;border-color:#ff4466;color:#fff}
+
+/* ── Convert Panel ── */
+.panel{display:none;margin-bottom:32px}
+.panel.show{display:block}
+.label{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--tx2);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.label::before{content:'';width:20px;height:1px;background:var(--bdr)}
+.formats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:28px}
+.fmt{padding:14px;background:var(--s1);border:2px solid var(--bdr);border-radius:var(--r);color:var(--tx);font-family:'JetBrains Mono',monospace;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);text-align:center;text-transform:uppercase;letter-spacing:1px;position:relative;overflow:hidden}
+.fmt::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--glow1),transparent);opacity:0;transition:.3s}
+.fmt:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.fmt:hover::before{opacity:1}
+.fmt.on{border-color:var(--ac);color:var(--ac);box-shadow:0 0 24px var(--glow1);background:rgba(255,94,58,.06)}
+.fmt.on::before{opacity:1}
+.fmt-ico{font-size:1.3rem;display:block;margin-bottom:4px}
+
+/* ── Action ── */
+.action{text-align:center}
+.go{padding:16px 56px;background:linear-gradient(135deg,var(--ac),#ff9a6c);border:none;border-radius:50px;color:#fff;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:600;cursor:pointer;letter-spacing:.5px;transition:.4s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.go::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#ff9a6c,var(--ac2));opacity:0;transition:.4s}
+.go:hover{transform:translateY(-3px);box-shadow:0 12px 40px var(--glow1)}.go:hover::before{opacity:1}
+.go span{position:relative;z-index:1}
+.go:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+
+/* ── Progress ── */
+.prog{display:none;margin:28px 0}.prog.on{display:block}
+.prog-bar{height:5px;background:var(--s2);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.prog-fill{height:100%;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2));border-radius:3px;transition:width .3s;box-shadow:0 0 16px var(--glow1)}
+.prog-txt{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--tx2);text-align:center}
+
+/* ── Results ── */
+.results{display:none;margin-top:28px}.results.on{display:block}
+.res-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--s1);border:1px solid rgba(0,232,176,.3);border-radius:var(--r);margin-bottom:10px;animation:fadeUp .4s ease}
+.res-ico{width:44px;height:44px;background:linear-gradient(135deg,var(--ac2),#00b894);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+.res-info{flex:1;min-width:0}
+.res-name{font-weight:500;font-size:.92rem}
+.res-size{font-size:.75rem;color:var(--tx2);margin-top:2px}
+.dl{padding:8px 18px;background:0 0;border:1px solid var(--ac2);border-radius:8px;color:var(--ac2);font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:1px;transition:.3s;text-transform:uppercase}
+.dl:hover{background:var(--ac2);color:var(--bg);box-shadow:0 0 20px var(--glow2)}
+
+/* ── Status ── */
+.msg{text-align:center;padding:14px 20px;border-radius:var(--r);margin:20px 0;font-size:.88rem;display:none}
+.msg.err{display:block;background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.25);color:#ff4466}
+.msg.ok{display:block;background:rgba(0,232,176,.06);border:1px solid rgba(0,232,176,.2);color:var(--ac2)}
+
+/* ── Info Banner ── */
+.info{margin-top:40px;padding:20px 24px;background:var(--s1);border:1px solid var(--bdr);border-radius:var(--r);font-size:.85rem;color:var(--tx2);line-height:1.7}
+.info strong{color:var(--ac2)}
+.info em{color:var(--ac);font-style:normal}
+
+/* ── Footer ── */
+footer{text-align:center;margin-top:48px;padding:24px 0;border-top:1px solid var(--bdr);color:var(--tx2);font-size:.75rem;letter-spacing:.5px}
+footer a{color:var(--ac);text-decoration:none}
+
+@media(max-width:600px){
+  h1{font-size:1.8rem}.drop{padding:36px 20px}.formats{grid-template-columns:repeat(2,1fr)}.go{width:100%;padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="noise"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="wrap">
+
+  <header>
+    <div class="logo-row a1">
+      <div class="logo-icon">⚡</div>
+      <h1>FileShift</h1>
+    </div>
+    <p class="tagline a2">Konversi File Universal</p>
+    <div class="badges a3">
+      <span class="badge">.MSG</span>
+      <span class="badge">.EML</span>
+      <span class="badge">.DOCX</span>
+      <span class="badge">.HTML</span>
+      <span class="badge">.TXT</span>
+      <span class="badge">.CSV</span>
+      <span class="badge">.JSON</span>
+      <span class="badge">.XML</span>
+      <span class="badge">.MD</span>
+      <span class="badge">.RTF</span>
+      <span class="badge">→ PDF</span>
+      <span class="badge">→ DOCX</span>
+      <span class="badge">→ TXT</span>
+      <span class="badge">→ HTML</span>
+    </div>
+  </header>
+
+  <!-- Drop Zone -->
+  <div class="drop a3" id="drop">
+    <div class="drop-ico">📂</div>
+    <div class="drop-title">Seret file ke sini</div>
+    <div class="drop-sub">atau <b id="browseBtn">pilih file</b> dari komputer</div>
+    <input type="file" id="fileIn" multiple>
+  </div>
+
+  <!-- File List -->
+  <div class="files" id="files"></div>
+
+  <!-- Convert Options -->
+  <div class="panel" id="panel">
+    <div class="label a4">Konversi ke</div>
+    <div class="formats" id="fmtGrid">
+      <button class="fmt" data-fmt="pdf" onclick="pickFmt(this)"><span class="fmt-ico">📄</span>PDF</button>
+      <button class="fmt" data-fmt="docx" onclick="pickFmt(this)"><span class="fmt-ico">📝</span>DOCX</button>
+      <button class="fmt" data-fmt="txt" onclick="pickFmt(this)"><span class="fmt-ico">📃</span>TXT</button>
+      <button class="fmt" data-fmt="html" onclick="pickFmt(this)"><span class="fmt-ico">🌐</span>HTML</button>
+    </div>
+    <div class="action">
+      <button class="go" id="goBtn" disabled onclick="doConvert()"><span>⚡ Konversi Sekarang</span></button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="prog" id="prog">
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <div class="prog-txt" id="progTxt">Mempersiapkan...</div>
+  </div>
+
+  <!-- Status -->
+  <div class="msg" id="msg"></div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div class="label">Hasil Konversi</div>
+    <div id="resList"></div>
+  </div>
+
+  <!-- Info -->
+  <div class="info a4">
+    <strong>🔒 Server-side conversion</strong> — File diproses melalui <em>Netlify Functions</em> untuk konversi yang akurat.
+    Library: <em>msgreader</em> untuk .MSG, <em>mailparser</em> untuk .EML, <em>mammoth</em> untuk .DOCX,
+    <em>pdfkit</em> untuk generate PDF, <em>docx</em> untuk generate DOCX.
+    File tidak disimpan di server — langsung diproses dan dikirim balik ke browser.
+  </div>
+
+  <footer>
+    Built with ⚡ by <a href="#">FileShift</a> &middot; Powered by Netlify Functions
+  </footer>
+</div>
+
+<script>
+// ════════════════════════
+// STATE
+// ════════════════════════
+let uploadedFiles = [];
+let targetFmt = null;
+
+// ════════════════════════
+// DROP ZONE
+// ════════════════════════
+const drop = document.getElementById('drop');
+const fileIn = document.getElementById('fileIn');
+
+document.getElementById('browseBtn').onclick = e => { e.stopPropagation(); fileIn.click(); };
+drop.onclick = () => fileIn.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
+fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ''; };
+
+function addFiles(list) {
+  for (const f of list) uploadedFiles.push(f);
+  render();
+}
+
+function removeFile(i) {
+  uploadedFiles.splice(i, 1);
+  render();
+}
+
+function render() {
+  const el = document.getElementById('files');
+  const panel = document.getElementById('panel');
+
+  if (!uploadedFiles.length) { el.innerHTML = ''; panel.classList.remove('show'); return; }
+  panel.classList.add('show');
+
+  el.innerHTML = uploadedFiles.map((f, i) => {
+    const ext = getExt(f.name);
+    const cls = extClass(ext);
+    return `<div class="file-card">
+      <div class="file-ext ${cls}">${ext}</div>
+      <div class="file-info">
+        <div class="file-name">${esc(f.name)}</div>
+        <div class="file-size">${fmtSize(f.size)}</div>
+      </div>
+      <button class="file-rm" onclick="removeFile(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function getExt(n) { return n.split('.').pop().toUpperCase().slice(0, 4); }
+function fmtSize(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB'; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function extClass(ext) {
+  const e = ext.toLowerCase();
+  if (['msg','eml'].includes(e)) return 'ext-msg';
+  if (e === 'docx') return 'ext-docx';
+  if (['csv','json','xml'].includes(e)) return 'ext-csv';
+  if (['html','htm'].includes(e)) return 'ext-html';
+  if (['txt','md','rtf','log'].includes(e)) return 'ext-txt';
+  return 'ext-default';
+}
+
+// ════════════════════════
+// FORMAT SELECTION
+// ════════════════════════
+function pickFmt(btn) {
+  document.querySelectorAll('.fmt').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  targetFmt = btn.dataset.fmt;
+  document.getElementById('goBtn').disabled = false;
+}
+
+// ════════════════════════
+// CONVERSION (calls Netlify Function)
+// ════════════════════════
+async function doConvert() {
+  if (!uploadedFiles.length || !targetFmt) return;
+
+  const prog = document.getElementById('prog');
+  const fill = document.getElementById('progFill');
+  const ptxt = document.getElementById('progTxt');
+  const results = document.getElementById('results');
+  const resList = document.getElementById('resList');
+  const msg = document.getElementById('msg');
+
+  // Reset
+  msg.className = 'msg'; msg.style.display = 'none';
+  results.classList.remove('on');
+  resList.innerHTML = '';
+  prog.classList.add('on');
+  fill.style.width = '0%';
+
+  document.getElementById('goBtn').disabled = true;
+
+  const converted = [];
+  const total = uploadedFiles.length;
+
+  for (let i = 0; i < total; i++) {
+    const f = uploadedFiles[i];
+    const pct = Math.round((i / total) * 100);
+    fill.style.width = pct + '%';
+    ptxt.textContent = `Mengkonversi ${f.name} (${i+1}/${total})...`;
+
+    try {
+      const result = await convertFile(f, targetFmt);
+      converted.push(result);
+    } catch (err) {
+      console.error('Error:', err);
+      showMsg(`Gagal mengkonversi ${f.name}: ${err.message}`, 'err');
+    }
+  }
+
+  fill.style.width = '100%';
+  ptxt.textContent = 'Selesai!';
+
+  setTimeout(() => {
+    prog.classList.remove('on');
+    document.getElementById('goBtn').disabled = false;
+
+    if (converted.length) {
+      results.classList.add('on');
+      resList.innerHTML = converted.map(r => `
+        <div class="res-card">
+          <div class="res-ico">✓</div>
+          <div class="res-info">
+            <div class="res-name">${esc(r.name)}</div>
+            <div class="res-size">${fmtSize(r.size)}</div>
+          </div>
+          <button class="dl" onclick="dlFile(this)" data-url="${r.url}" data-name="${esc(r.name)}">Download</button>
+        </div>
+      `).join('');
+
+      if (converted.length === total) {
+        showMsg(`✓ Berhasil mengkonversi ${total} file!`, 'ok');
+      }
+    }
+  }, 600);
+}
+
+async function convertFile(file, fmt) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('targetFormat', fmt);
+
+  const resp = await fetch('/api/convert', {
+    method: 'POST',
+    body: form,
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: 'Server error' }));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+
+  const blob = await resp.blob();
+  const filename = resp.headers.get('X-Filename') || `converted.${fmt}`;
+
+  return {
+    name: filename,
+    size: blob.size,
+    url: URL.createObjectURL(blob),
+  };
+}
+
+function dlFile(btn) {
+  const a = document.createElement('a');
+  a.href = btn.dataset.url;
+  a.download = btn.dataset.name;
+  a.click();
+}
+
+function showMsg(text, type) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = `msg ${type}`;
+}
+</script>
+</body>
+</html>
